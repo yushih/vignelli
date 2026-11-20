@@ -1,0 +1,9 @@
+{
+  "manifest_version": 3,
+  "name": "Vignelli",
+  "version": "1.0.0",
+  "description": "Point to page elements and annotate the changes you want your coding agent to make.",
+  "permissions": ["activeTab", "scripting"],
+  "action": { "default_title": "Annotate this page with Vignelli" },
+  "background": { "service_worker": "background.js" }
+}

@@ -4,3 +4,9 @@ The project name Vignelli is a a tribute to the Italian designer [Massimo Vignel
 
 
 include url
+
+## Chrome extension
+
+From `extension/`, run `npm ci` and `npm run build` using Node.js 26. Open `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**, and select `extension/dist`.
+
+On a webpage, open Chrome’s Extensions menu and click **Vignelli**. Click a page element to annotate it. After editing `injected.ts`, rebuild and reload the extension.

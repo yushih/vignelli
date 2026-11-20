@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "es2022",
+    "moduleDetection": "legacy",
+    "strict": true,
+    "noEmitOnError": true,
+    "outDir": "dist"
+  },
+  "files": ["injected.ts"]
+}
