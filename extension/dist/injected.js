@@ -20,6 +20,17 @@
             }
             return `${name}[${index}]`;
         }
+        function describeReviewTarget(el) {
+            if (el instanceof HTMLImageElement) {
+                const url = el.currentSrc || el.src;
+                return url ? `Image URL: ${url}` : '';
+            }
+            if (!(el instanceof HTMLElement || el instanceof SVGTextElement))
+                return '';
+            const text = el instanceof HTMLElement ? el.innerText : el.textContent;
+            const excerpt = Array.from((text ?? '').trim()).slice(0, 512).join('');
+            return excerpt ? `Element text: ${excerpt}` : '';
+        }
         function describeDOM() {
             const lines = [`Viewport ${innerWidth} × ${innerHeight} CSS px, scroll (${scrollX}, ${scrollY})`];
             function visit(el, depth) {
@@ -177,6 +188,7 @@
             }
             const review = {
                 path: '/' + steps.reverse().join('/'),
+                elementDetails: describeReviewTarget(el),
                 x,
                 y,
                 text: ''
@@ -309,7 +321,12 @@
                 if (finishDialog.open)
                     return;
                 overlay.hidden = true;
-                const comments = Array.from(reviews.keys(), ({ path, x, y, text }, i) => `${i + 1}.Position (viewport CSS px): (${x}, ${y})\nXPath of element being pointed to: ${path}\nReviewer's comment: ${text}`);
+                const comments = Array.from(reviews.keys(), ({ path, elementDetails, x, y, text }, i) => [
+                    `${i + 1}. Position (viewport CSS px): (${x}, ${y})`,
+                    `XPath of element being pointed to: ${path}`,
+                    elementDetails,
+                    `Reviewer's comment: ${text}`
+                ].filter(Boolean).join('\n'));
                 report.value = [
                     `The rendered page: ${document.URL} was reviewed by pointing the mouse at specific positions and making a comment at each position. The comments are:`,
                     comments.join('\n\n') || 'No comments.',
