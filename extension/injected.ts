@@ -11,6 +11,7 @@
   const reviews: Review[] = []
 
   const overlay = document.createElement('div');
+  overlay.hidden = true;
   Object.assign(overlay.style, {
     position: 'fixed',
     pointerEvents: 'none', // Crucial: lets elementFromPoint see through the overlay
@@ -26,12 +27,17 @@
     return e.composedPath().some(node => node instanceof Element && inputBoxes.has(node));
   }
 
-  function handleMouseMove(e: MouseEvent) {
-    overlay.hidden = isInputBoxEvent(e);
-    if (overlay.hidden) return;
-    const el = document.elementFromPoint(e.clientX, e.clientY);
-    if (!el || el === document.body || el === document.documentElement) return;
+  let pointer: { x: number, y: number } | undefined;
 
+  function updateHighlight() {
+    const el = pointer && document.elementFromPoint(pointer.x, pointer.y);
+    if (!el || el === document.body || el === document.documentElement ||
+        el.closest('[data-vignelli-annotation]')) {
+      overlay.hidden = true;
+      return;
+    }
+
+    overlay.hidden = false;
     const rect = el.getBoundingClientRect();
     Object.assign(overlay.style, {
       top: `${rect.top}px`,
@@ -49,6 +55,7 @@
     onMove: (rect: DOMRect) => void
   ) {
     const box = document.createElement('div');
+    box.dataset.vignelliAnnotation = '';
     inputBoxes.add(box);
     Object.assign(box.style, {
       position: 'fixed', left: `${posX}px`, top: `${posY}px`,
@@ -164,7 +171,15 @@
 
   function startReview() {
     document.body.appendChild(overlay);
-    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mousemove', event => {
+      pointer = { x: event.clientX, y: event.clientY };
+      updateHighlight();
+    });
+    document.addEventListener('mouseleave', () => {
+      pointer = undefined;
+      updateHighlight();
+    });
+    document.addEventListener('scroll', updateHighlight, true);
     document.addEventListener('click', handleClick);
   }
 
