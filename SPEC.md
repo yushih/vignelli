@@ -18,6 +18,7 @@ Run these on a webpage with at least two visible elements after loading the exte
 | Close either annotation. | Its box and connector disappear. The other note remains editable. |
 | Click Vignelli again during review. | A confirmation dialog opens on the page without the action popup. The report starts at the top on every opening. Escape resumes the review. |
 | Inspect the finish dialog and choose Copy report. | The preview and clipboard contain the same page URL, numbered comments with click coordinates and element paths, and an indented snapshot of the rendered page with layout and visibility. Scripts and Vignelli controls are omitted. |
+| Toggle Include rendered DOM in the finish dialog. | The checkbox starts checked for each new review and its label shows the DOM snapshot’s character count. Toggling it updates the preview, copied report, and download while preserving the comments. |
 | Inspect the rendered DOM for links and images. | Each `<a>` includes its `href` and each `<img>` includes its `src` when present, preserving relative URLs. |
 | Review an image and a box containing text. | Each comment records its target at click time: the resolved image URL for an image, or up to 512 characters of rendered text, including text in descendants, for a text box. |
 | Choose Download report and copy filename. | A UTF-8 text file containing the exact preview downloads. Its name uses the form `vignelli-review-<ISO time>.txt` with a filename-safe UTC timestamp, and the same filename is copied to the clipboard. |

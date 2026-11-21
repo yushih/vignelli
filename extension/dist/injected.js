@@ -240,6 +240,12 @@
         document.addEventListener('click', handleClick, { signal: listeners.signal });
         const finishDialog = document.createElement('dialog');
         owned.add(finishDialog);
+        const includeDOM = document.createElement('input');
+        includeDOM.type = 'checkbox';
+        includeDOM.checked = true;
+        const domLabel = document.createElement('label');
+        const domLabelText = document.createTextNode('');
+        domLabel.append(includeDOM, domLabelText);
         const report = document.createElement('textarea');
         report.readOnly = true;
         report.rows = 14;
@@ -294,7 +300,7 @@
         {
             finishDialog.setAttribute('aria-label', 'Finish review');
             const prompt = document.createElement('p');
-            prompt.textContent = 'Finish this review and remove its annotations?';
+            prompt.textContent = 'The result:';
             const confirm = document.createElement('button');
             confirm.textContent = 'Finish review';
             confirm.type = 'button';
@@ -315,7 +321,7 @@
                 finishDialog.close();
                 overlay.hidden = false;
             };
-            finishDialog.append(prompt, report, copy, download, filenameField, cancel, confirm);
+            finishDialog.append(prompt, domLabel, report, copy, download, filenameField, cancel, confirm);
             document.body.append(finishDialog);
         }
         state.vignelliReview = {
@@ -329,13 +335,18 @@
                     elementDetails,
                     `Reviewer's comment: ${text}`
                 ].filter(Boolean).join('\n'));
-                report.value = [
+                const summary = [
                     `The rendered page: ${document.URL} was reviewed by pointing the mouse at specific positions and making a comment at each position. The comments are:`,
-                    comments.join('\n\n') || 'No comments.',
-                    'Rendered DOM',
-                    describeDOM()
+                    comments.join('\n\n') || 'No comments.'
                 ].join('\n\n');
-                copy.textContent = 'Copy report';
+                const dom = describeDOM();
+                domLabelText.data = ` Include rendered DOM (${Array.from(dom).length.toLocaleString()} characters)`;
+                function updatePreview() {
+                    report.value = includeDOM.checked ? `${summary}\n\nRendered DOM below:\n\n${dom}` : summary;
+                    copy.textContent = 'Copy report';
+                }
+                includeDOM.onchange = updatePreview;
+                updatePreview();
                 download.textContent = 'Download report and copy filename';
                 filenameField.hidden = true;
                 finishDialog.showModal();
