@@ -1,6 +1,6 @@
 (() => {
-  const state = window as Window & { vignelliReviewActive?: boolean };
-  if (state.vignelliReviewActive) return;
+  const state = window as Window & { isReviewActive?: boolean };
+  if (state.isReviewActive) return;
 
   interface Review {
     element: Element,
@@ -184,5 +184,5 @@
   }
 
   startReview();
-  state.vignelliReviewActive = true;
+  state.isReviewActive = true;
 })();
