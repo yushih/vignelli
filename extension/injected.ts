@@ -54,7 +54,7 @@
       return lines.join('\n');
     }
 
-    const reviews = new Map<Review, () => void>();
+    const reviews = new Map<Review, { reposition: () => void, remove: () => void }>();
 
     const listeners = new AbortController();
     const overlay = document.createElement('div');
@@ -94,7 +94,7 @@
       });
     }
 
-    function createInputBox(
+    function createReviewBox(
       posX: number,
       posY: number,
       onClose: () => void,
@@ -176,11 +176,17 @@
       const line = document.createElementNS(svg.namespaceURI!, 'line');
       line.setAttribute('stroke-width', '5');
       line.setAttribute('stroke', '#ff4757');
-      line.setAttribute('x1', String(x));
-      line.setAttribute('y1', String(y));
       svg.append(line);
 
-      function updateLine(rect: DOMRect) {
+      const targetRect = el.getBoundingClientRect();
+      const pointOffsetX = x - targetRect.left;
+      const pointOffsetY = y - targetRect.top;
+      let boxOffsetX = 0;
+      let boxOffsetY = 0;
+
+      function updateLine(rect: DOMRect, x: number, y: number) {
+        line.setAttribute('x1', String(x));
+        line.setAttribute('y1', String(y));
         let endX = Math.max(rect.left, Math.min(x, rect.right));
         let endY = Math.max(rect.top, Math.min(y, rect.bottom));
         if (endX === x && endY === y) {
@@ -205,7 +211,7 @@
         text: ''
       };
 
-      const box = createInputBox(
+      const box = createReviewBox(
         x,
         y,
         () => {
@@ -215,13 +221,28 @@
         (value) => {
           review.text = value
         },
-        updateLine
+        rect => {
+          const target = el.getBoundingClientRect();
+          const anchorX = target.left + pointOffsetX;
+          const anchorY = target.top + pointOffsetY;
+          boxOffsetX = rect.left - anchorX;
+          boxOffsetY = rect.top - anchorY;
+          updateLine(rect, anchorX, anchorY);
+        }
       );
-      reviews.set(review, () => { box.remove(); svg.remove(); });
+      function reposition() {
+        const target = el!.getBoundingClientRect();
+        const anchorX = target.left + pointOffsetX;
+        const anchorY = target.top + pointOffsetY;
+        box.style.left = `${anchorX + boxOffsetX}px`;
+        box.style.top = `${anchorY + boxOffsetY}px`;
+        updateLine(box.getBoundingClientRect(), anchorX, anchorY);
+      }
+      reviews.set(review, { reposition, remove: () => { box.remove(); svg.remove(); } });
       owned.add(svg);
       owned.add(box);
       document.body.append(svg, box);
-      updateLine(box.getBoundingClientRect());
+      reposition();
     }
 
     owned.add(overlay);
@@ -234,7 +255,10 @@
       pointer = undefined;
       updateHighlight();
     }, { signal: listeners.signal });
-    document.addEventListener('scroll', updateHighlight, { capture: true, signal: listeners.signal });
+    document.addEventListener('scroll', () => {
+      for (const annotation of reviews.values()) annotation.reposition();
+      updateHighlight();
+    }, { capture: true, signal: listeners.signal });
     document.addEventListener('click', handleClick, { signal: listeners.signal });
 
     const finishDialog = document.createElement('dialog');
@@ -257,6 +281,37 @@
         copy.textContent = document.execCommand('copy') ? 'Copied' : 'Press Ctrl+C or ⌘C to copy';
       }
     };
+    const download = document.createElement('button');
+    download.type = 'button';
+    download.textContent = 'Download report and copy filename';
+    const filenameField = document.createElement('input');
+    filenameField.readOnly = true;
+    filenameField.hidden = true;
+    filenameField.setAttribute('aria-label', 'Filename to copy');
+    download.onclick = async () => {
+      const timestamp = new Date().toISOString().replace(/[-:]/g, '');
+      const filename = `vignelli-review-${timestamp}.txt`;
+      const file = new Blob([report.value], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(file);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+      filenameField.hidden = true;
+      try {
+        await navigator.clipboard.writeText(filename);
+      } catch {
+        filenameField.value = filename;
+        filenameField.hidden = false;
+        filenameField.focus();
+        filenameField.select();
+        if (!document.execCommand('copy')) return;
+        filenameField.hidden = true;
+      }
+      download.textContent = 'Download again (filename copied)';
+    };
     {
       finishDialog.setAttribute('aria-label', 'Finish review');
 
@@ -268,7 +323,7 @@
       confirm.type = 'button';
       confirm.onclick = () => {
         listeners.abort();
-        for (const remove of reviews.values()) remove();
+        for (const annotation of reviews.values()) annotation.remove();
         reviews.clear();
         overlay.remove();
         finishDialog.close();
@@ -283,7 +338,7 @@
         finishDialog.close();
         overlay.hidden = false;
       }
-      finishDialog.append(prompt, report, copy, cancel, confirm);
+      finishDialog.append(prompt, report, copy, download, filenameField, cancel, confirm);
       document.body.append(finishDialog);
     }
 
@@ -301,6 +356,8 @@
           describeDOM()
         ].join('\n\n');
         copy.textContent = 'Copy report';
+        download.textContent = 'Download report and copy filename';
+        filenameField.hidden = true;
         finishDialog.showModal();
       }
     };

@@ -76,7 +76,7 @@
                 height: `${rect.height}px`
             });
         }
-        function createInputBox(posX, posY, onClose, onInputChange, onMove) {
+        function createReviewBox(posX, posY, onClose, onInputChange, onMove) {
             const box = document.createElement('div');
             box.dataset.vignelliAnnotation = '';
             inputBoxes.add(box);
@@ -146,10 +146,15 @@
             const line = document.createElementNS(svg.namespaceURI, 'line');
             line.setAttribute('stroke-width', '5');
             line.setAttribute('stroke', '#ff4757');
-            line.setAttribute('x1', String(x));
-            line.setAttribute('y1', String(y));
             svg.append(line);
-            function updateLine(rect) {
+            const targetRect = el.getBoundingClientRect();
+            const pointOffsetX = x - targetRect.left;
+            const pointOffsetY = y - targetRect.top;
+            let boxOffsetX = 0;
+            let boxOffsetY = 0;
+            function updateLine(rect, x, y) {
+                line.setAttribute('x1', String(x));
+                line.setAttribute('y1', String(y));
                 let endX = Math.max(rect.left, Math.min(x, rect.right));
                 let endY = Math.max(rect.top, Math.min(y, rect.bottom));
                 if (endX === x && endY === y) {
@@ -176,17 +181,32 @@
                 y,
                 text: ''
             };
-            const box = createInputBox(x, y, () => {
+            const box = createReviewBox(x, y, () => {
                 reviews.delete(review);
                 svg.remove();
             }, (value) => {
                 review.text = value;
-            }, updateLine);
-            reviews.set(review, () => { box.remove(); svg.remove(); });
+            }, rect => {
+                const target = el.getBoundingClientRect();
+                const anchorX = target.left + pointOffsetX;
+                const anchorY = target.top + pointOffsetY;
+                boxOffsetX = rect.left - anchorX;
+                boxOffsetY = rect.top - anchorY;
+                updateLine(rect, anchorX, anchorY);
+            });
+            function reposition() {
+                const target = el.getBoundingClientRect();
+                const anchorX = target.left + pointOffsetX;
+                const anchorY = target.top + pointOffsetY;
+                box.style.left = `${anchorX + boxOffsetX}px`;
+                box.style.top = `${anchorY + boxOffsetY}px`;
+                updateLine(box.getBoundingClientRect(), anchorX, anchorY);
+            }
+            reviews.set(review, { reposition, remove: () => { box.remove(); svg.remove(); } });
             owned.add(svg);
             owned.add(box);
             document.body.append(svg, box);
-            updateLine(box.getBoundingClientRect());
+            reposition();
         }
         owned.add(overlay);
         document.body.appendChild(overlay);
@@ -198,7 +218,11 @@
             pointer = undefined;
             updateHighlight();
         }, { signal: listeners.signal });
-        document.addEventListener('scroll', updateHighlight, { capture: true, signal: listeners.signal });
+        document.addEventListener('scroll', () => {
+            for (const annotation of reviews.values())
+                annotation.reposition();
+            updateHighlight();
+        }, { capture: true, signal: listeners.signal });
         document.addEventListener('click', handleClick, { signal: listeners.signal });
         const finishDialog = document.createElement('dialog');
         owned.add(finishDialog);
@@ -221,6 +245,38 @@
                 copy.textContent = document.execCommand('copy') ? 'Copied' : 'Press Ctrl+C or ⌘C to copy';
             }
         };
+        const download = document.createElement('button');
+        download.type = 'button';
+        download.textContent = 'Download report and copy filename';
+        const filenameField = document.createElement('input');
+        filenameField.readOnly = true;
+        filenameField.hidden = true;
+        filenameField.setAttribute('aria-label', 'Filename to copy');
+        download.onclick = async () => {
+            const timestamp = new Date().toISOString().replace(/[-:]/g, '');
+            const filename = `vignelli-review-${timestamp}.txt`;
+            const file = new Blob([report.value], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(file);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            link.click();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            filenameField.hidden = true;
+            try {
+                await navigator.clipboard.writeText(filename);
+            }
+            catch {
+                filenameField.value = filename;
+                filenameField.hidden = false;
+                filenameField.focus();
+                filenameField.select();
+                if (!document.execCommand('copy'))
+                    return;
+                filenameField.hidden = true;
+            }
+            download.textContent = 'Download again (filename copied)';
+        };
         {
             finishDialog.setAttribute('aria-label', 'Finish review');
             const prompt = document.createElement('p');
@@ -230,8 +286,8 @@
             confirm.type = 'button';
             confirm.onclick = () => {
                 listeners.abort();
-                for (const remove of reviews.values())
-                    remove();
+                for (const annotation of reviews.values())
+                    annotation.remove();
                 reviews.clear();
                 overlay.remove();
                 finishDialog.close();
@@ -245,7 +301,7 @@
                 finishDialog.close();
                 overlay.hidden = false;
             };
-            finishDialog.append(prompt, report, copy, cancel, confirm);
+            finishDialog.append(prompt, report, copy, download, filenameField, cancel, confirm);
             document.body.append(finishDialog);
         }
         state.vignelliReview = {
@@ -253,10 +309,16 @@
                 if (finishDialog.open)
                     return;
                 overlay.hidden = true;
-                const comments = Array.from(reviews.keys(), ({ path, x, y, text }, i) => `${i + 1}. Element XPath: ${path}\nClick (viewport CSS px): (${x}, ${y})\nComment: ${text}`);
-                report.value = [`Page: ${document.URL}`, comments.join('\n\n') || 'No comments.',
-                    'Rendered DOM', describeDOM()].join('\n\n');
+                const comments = Array.from(reviews.keys(), ({ path, x, y, text }, i) => `${i + 1}.Position (viewport CSS px): (${x}, ${y})\nXPath of element being pointed to: ${path}\nReviewer's comment: ${text}`);
+                report.value = [
+                    `The rendered page: ${document.URL} was reviewed by pointing the mouse at specific positions and making a comment at each position. The comments are:`,
+                    comments.join('\n\n') || 'No comments.',
+                    'Rendered DOM',
+                    describeDOM()
+                ].join('\n\n');
                 copy.textContent = 'Copy report';
+                download.textContent = 'Download report and copy filename';
+                filenameField.hidden = true;
                 finishDialog.showModal();
             }
         };
