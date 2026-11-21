@@ -9,4 +9,8 @@ include url
 
 From `extension/`, run `npm ci` and `npm run build` using Node.js 26. Open `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**, and select `extension/dist`.
 
-On a webpage, open Chrome’s Extensions menu and click **Vignelli**. Click a page element to annotate it. After editing `injected.ts`, rebuild and reload the extension.
+On a webpage, open Chrome’s Extensions menu and click **Vignelli**. Click a page element to annotate it. Click **Vignelli** again and choose **Finish review** to remove the annotations. After editing `injected.ts`, rebuild and reload the extension.
+
+## Development
+
+[SPEC.md](SPEC.md) defines the extension’s behavior and how to check it. [AGENTS.md](AGENTS.md) gives coding agents the spec-first workflow for making changes.

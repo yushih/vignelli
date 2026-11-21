@@ -1,10 +1,15 @@
 "use strict";
 (() => {
     const state = window;
-    if (state.vignelliReviewActive)
-        return;
-    const reviews = [];
+    if (state.vignelliReview) {
+        state.vignelliReview.requestFinish();
+        return 'finishing';
+    }
+    const reviews = new Map();
+    const listeners = new AbortController();
+    const dialog = document.createElement('dialog');
     const overlay = document.createElement('div');
+    overlay.hidden = true;
     Object.assign(overlay.style, {
         position: 'fixed',
         pointerEvents: 'none', // Crucial: lets elementFromPoint see through the overlay
@@ -17,13 +22,15 @@
     function isInputBoxEvent(e) {
         return e.composedPath().some(node => node instanceof Element && inputBoxes.has(node));
     }
-    function handleMouseMove(e) {
-        overlay.hidden = isInputBoxEvent(e);
-        if (overlay.hidden)
+    let pointer;
+    function updateHighlight() {
+        const el = pointer && document.elementFromPoint(pointer.x, pointer.y);
+        if (dialog.open || !el || el === document.body || el === document.documentElement ||
+            el.closest('[data-vignelli-annotation]')) {
+            overlay.hidden = true;
             return;
-        const el = document.elementFromPoint(e.clientX, e.clientY);
-        if (!el || el === document.body || el === document.documentElement)
-            return;
+        }
+        overlay.hidden = false;
         const rect = el.getBoundingClientRect();
         Object.assign(overlay.style, {
             top: `${rect.top}px`,
@@ -34,6 +41,7 @@
     }
     function createInputBox(posX, posY, onClose, onInputChange, onMove) {
         const box = document.createElement('div');
+        box.dataset.vignelliAnnotation = '';
         inputBoxes.add(box);
         Object.assign(box.style, {
             position: 'fixed', left: `${posX}px`, top: `${posY}px`,
@@ -86,6 +94,8 @@
         return box;
     }
     function handleClick(e) {
+        if (dialog.open || e.composedPath().includes(dialog))
+            return;
         const el = document.elementFromPoint(e.clientX, e.clientY);
         if (!el || el === document.body || el === document.documentElement)
             return;
@@ -127,22 +137,55 @@
             y,
             text: ''
         };
-        reviews.push(review);
         const box = createInputBox(x, y, () => {
-            const i = reviews.indexOf(review);
-            reviews.splice(i, i);
+            reviews.delete(review);
             svg.remove();
         }, (value) => {
             review.text = value;
         }, updateLine);
+        reviews.set(review, () => { box.remove(); svg.remove(); });
         document.body.append(svg, box);
         updateLine(box.getBoundingClientRect());
     }
     function startReview() {
         document.body.appendChild(overlay);
-        document.addEventListener('mousemove', handleMouseMove);
-        document.addEventListener('click', handleClick);
+        document.addEventListener('mousemove', event => {
+            pointer = { x: event.clientX, y: event.clientY };
+            updateHighlight();
+        }, { signal: listeners.signal });
+        document.addEventListener('mouseleave', () => {
+            pointer = undefined;
+            updateHighlight();
+        }, { signal: listeners.signal });
+        document.addEventListener('scroll', updateHighlight, { capture: true, signal: listeners.signal });
+        document.addEventListener('click', handleClick, { signal: listeners.signal });
     }
     startReview();
-    state.vignelliReviewActive = true;
+    const prompt = document.createElement('p');
+    prompt.textContent = 'Finish this review and remove its annotations?';
+    const confirm = document.createElement('button');
+    confirm.textContent = 'Finish review';
+    confirm.type = 'button';
+    dialog.setAttribute('aria-label', 'Finish review');
+    dialog.append(prompt, confirm);
+    confirm.onclick = () => {
+        listeners.abort();
+        for (const remove of reviews.values())
+            remove();
+        reviews.clear();
+        overlay.remove();
+        dialog.close();
+        dialog.remove();
+        delete state.vignelliReview;
+    };
+    state.vignelliReview = {
+        requestFinish() {
+            if (dialog.open)
+                return;
+            overlay.hidden = true;
+            document.body.append(dialog);
+            dialog.showModal();
+        }
+    };
+    return 'started';
 })();

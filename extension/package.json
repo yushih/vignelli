@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "tsc && node -e \"for (const file of ['manifest.json', 'background.js']) require('node:fs').copyFileSync(file, 'dist/' + file)\""
+    "build": "tsc && node -e \"for (const file of ['manifest.json', 'background.js', 'popup.html']) require('node:fs').copyFileSync(file, 'dist/' + file)\""
   },
   "keywords": [],
   "author": "",
