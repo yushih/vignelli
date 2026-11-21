@@ -292,10 +292,14 @@
         if (finishDialog.open) return;
         overlay.hidden = true;
         const comments = Array.from(reviews.keys(), ({ path, x, y, text }, i) =>
-          `${i + 1}. Element XPath: ${path}\nClick (viewport CSS px): (${x}, ${y})\nComment: ${text}`
+          `${i + 1}.Position (viewport CSS px): (${x}, ${y})\nXPath of element being pointed to: ${path}\nReviewer's comment: ${text}`
         );
-        report.value = [`Page: ${document.URL}`, comments.join('\n\n') || 'No comments.',
-          'Rendered DOM', describeDOM()].join('\n\n');
+        report.value = [
+          `The rendered page: ${document.URL} was reviewed by pointing the mouse at specific positions and making a comment at each position. The comments are:`,
+          comments.join('\n\n') || 'No comments.',
+          'Rendered DOM',
+          describeDOM()
+        ].join('\n\n');
         copy.textContent = 'Copy report';
         finishDialog.showModal();
       }
