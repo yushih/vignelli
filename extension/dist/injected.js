@@ -37,7 +37,9 @@
                 if (owned.has(el) || el.matches('script, style, noscript, template'))
                     return;
                 const attrs = Array.from(el.attributes)
-                    .filter(({ name }) => /^(id|class|name|role|type|alt|title|hidden|aria-[\w-]+|data-(?:testid|test-id|source|component))$/.test(name))
+                    .filter(({ name }) => (el.localName === 'a' && name === 'href') ||
+                    (el.localName === 'img' && name === 'src') ||
+                    /^(id|class|name|role|type|alt|title|hidden|aria-[\w-]+|data-(?:testid|test-id|source|component))$/.test(name))
                     .map(({ name, value }) => `${name}=${JSON.stringify(value)}`);
                 const rect = el.getBoundingClientRect();
                 const css = getComputedStyle(el);
