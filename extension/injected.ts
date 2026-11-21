@@ -332,7 +332,7 @@
       finishDialog.setAttribute('aria-label', 'Finish review');
 
       const prompt = document.createElement('p');
-      prompt.textContent = 'Finish this review and remove its annotations?';
+      prompt.textContent = 'The result:';
 
       const confirm = document.createElement('button');
       confirm.textContent = 'Finish review';
@@ -373,7 +373,7 @@
         report.value = [
           `The rendered page: ${document.URL} was reviewed by pointing the mouse at specific positions and making a comment at each position. The comments are:`,
           comments.join('\n\n') || 'No comments.',
-          'Rendered DOM',
+          'Rendered DOM below:',
           describeDOM()
         ].join('\n\n');
         copy.textContent = 'Copy report';
