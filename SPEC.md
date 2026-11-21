@@ -16,4 +16,5 @@ Run these on a webpage with at least two visible elements after loading the exte
 | Click a second element. | The first note is preserved and exactly one new annotation opens. |
 | Close either annotation. | Its box and connector disappear. The other note remains editable. |
 | Click Vignelli again during review. | A confirmation dialog opens on the page without the action popup. Escape resumes the review. |
+| Inspect the finish dialog and choose Copy report. | The preview and clipboard contain the same page URL, numbered comments with click coordinates and element paths, and an indented snapshot of the rendered page with layout and visibility. Scripts and Vignelli controls are omitted. |
 | Confirm the finish dialog, then start another review. | The dialog, annotations, connectors, and outline disappear. Page clicks work normally until the next activation starts a fresh review. |

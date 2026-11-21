@@ -9,6 +9,40 @@
         return 'started';
     }
     function startReview() {
+        const owned = new WeakSet();
+        function pathStep(el) {
+            const name = el.namespaceURI === 'http://www.w3.org/1999/xhtml'
+                ? el.localName : `*[local-name()="${el.localName}"]`;
+            let index = 1;
+            for (let sibling = el.previousElementSibling; sibling; sibling = sibling.previousElementSibling) {
+                if (!owned.has(sibling) && sibling.localName === el.localName)
+                    index++;
+            }
+            return `${name}[${index}]`;
+        }
+        function describeDOM() {
+            const lines = [`Viewport ${innerWidth} × ${innerHeight} CSS px, scroll (${scrollX}, ${scrollY})`];
+            function visit(el, depth) {
+                if (owned.has(el) || el.matches('script, style, noscript, template'))
+                    return;
+                const attrs = Array.from(el.attributes)
+                    .filter(({ name }) => /^(id|class|name|role|type|alt|title|hidden|aria-[\w-]+|data-(?:testid|test-id|source|component))$/.test(name))
+                    .map(({ name, value }) => `${name}=${JSON.stringify(value)}`);
+                const rect = el.getBoundingClientRect();
+                const css = getComputedStyle(el);
+                const text = Array.from(el.childNodes)
+                    .filter(node => node.nodeType === Node.TEXT_NODE)
+                    .map(node => node.textContent).join(' ').replace(/\s+/g, ' ').trim();
+                lines.push(`${'  '.repeat(depth)}${pathStep(el)} ${attrs.join(' ')}` +
+                    ` | viewport (x,y,w,h)=(${[rect.x, rect.y, rect.width, rect.height].map(Math.round).join(',')})` +
+                    ` position=${css.position} z-index=${css.zIndex} display=${css.display} visibility=${css.visibility} opacity=${css.opacity}` +
+                    (text ? ` text=${JSON.stringify(text)}` : ''));
+                for (const child of el.children)
+                    visit(child, depth + 1);
+            }
+            visit(document.documentElement, 0);
+            return lines.join('\n');
+        }
         const reviews = new Map();
         const listeners = new AbortController();
         const overlay = document.createElement('div');
@@ -132,8 +166,12 @@
                 line.setAttribute('x2', String(endX));
                 line.setAttribute('y2', String(endY));
             }
+            const steps = [];
+            for (let ancestor = el; ancestor; ancestor = ancestor.parentElement) {
+                steps.push(pathStep(ancestor));
+            }
             const review = {
-                element: el,
+                path: '/' + steps.reverse().join('/'),
                 x,
                 y,
                 text: ''
@@ -145,9 +183,12 @@
                 review.text = value;
             }, updateLine);
             reviews.set(review, () => { box.remove(); svg.remove(); });
+            owned.add(svg);
+            owned.add(box);
             document.body.append(svg, box);
             updateLine(box.getBoundingClientRect());
         }
+        owned.add(overlay);
         document.body.appendChild(overlay);
         document.addEventListener('mousemove', event => {
             pointer = { x: event.clientX, y: event.clientY };
@@ -160,6 +201,26 @@
         document.addEventListener('scroll', updateHighlight, { capture: true, signal: listeners.signal });
         document.addEventListener('click', handleClick, { signal: listeners.signal });
         const finishDialog = document.createElement('dialog');
+        owned.add(finishDialog);
+        const report = document.createElement('textarea');
+        report.readOnly = true;
+        report.rows = 14;
+        report.style.width = 'min(64ch, 70vw)';
+        report.style.display = 'block';
+        report.setAttribute('aria-label', 'Review report');
+        const copy = document.createElement('button');
+        copy.type = 'button';
+        copy.onclick = async () => {
+            try {
+                await navigator.clipboard.writeText(report.value);
+                copy.textContent = 'Copied';
+            }
+            catch {
+                report.focus();
+                report.select();
+                copy.textContent = document.execCommand('copy') ? 'Copied' : 'Press Ctrl+C or ⌘C to copy';
+            }
+        };
         {
             finishDialog.setAttribute('aria-label', 'Finish review');
             const prompt = document.createElement('p');
@@ -184,15 +245,18 @@
                 finishDialog.close();
                 overlay.hidden = false;
             };
-            finishDialog.append(prompt, cancel, confirm);
+            finishDialog.append(prompt, report, copy, cancel, confirm);
             document.body.append(finishDialog);
         }
         state.vignelliReview = {
-            reviews,
             requestFinish() {
                 if (finishDialog.open)
                     return;
                 overlay.hidden = true;
+                const comments = Array.from(reviews.keys(), ({ path, x, y, text }, i) => `${i + 1}. Element XPath: ${path}\nClick (viewport CSS px): (${x}, ${y})\nComment: ${text}`);
+                report.value = [`Page: ${document.URL}`, comments.join('\n\n') || 'No comments.',
+                    'Rendered DOM', describeDOM()].join('\n\n');
+                copy.textContent = 'Copy report';
                 finishDialog.showModal();
             }
         };
