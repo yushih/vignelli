@@ -16,7 +16,7 @@ Run these on a webpage with at least two visible elements after loading the exte
 | Drag the bottom-right resize handle, then select text in the note. | The box resizes in place, the connector follows the border, and text selection leaves the box in place. |
 | Click a second element. | The first note is preserved and exactly one new annotation opens. |
 | Close either annotation. | Its box and connector disappear. The other note remains editable. |
-| Click Vignelli again during review. | A confirmation dialog opens on the page without the action popup. Escape resumes the review. |
+| Click Vignelli again during review. | A confirmation dialog opens on the page without the action popup. The report starts at the top on every opening. Escape resumes the review. |
 | Inspect the finish dialog and choose Copy report. | The preview and clipboard contain the same page URL, numbered comments with click coordinates and element paths, and an indented snapshot of the rendered page with layout and visibility. Scripts and Vignelli controls are omitted. |
 | Inspect the rendered DOM for links and images. | Each `<a>` includes its `href` and each `<img>` includes its `src` when present, preserving relative URLs. |
 | Review an image and a box containing text. | Each comment records its target at click time: the resolved image URL for an image, or up to 512 characters of rendered text, including text in descendants, for a text box. |

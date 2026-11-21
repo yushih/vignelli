@@ -339,6 +339,7 @@
                 download.textContent = 'Download report and copy filename';
                 filenameField.hidden = true;
                 finishDialog.showModal();
+                report.scrollTop = 0;
             }
         };
     }
