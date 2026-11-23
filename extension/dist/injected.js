@@ -57,6 +57,43 @@
             return lines.join('\n');
         }
         const reviews = new Map();
+        const host = document.createElement('div');
+        owned.add(host);
+        const ui = host.attachShadow({ mode: 'open' });
+        const styles = document.createElement('style');
+        styles.textContent = `
+      :host {
+        all: initial !important;
+        display: contents !important;
+        direction: ltr !important;
+        unicode-bidi: isolate !important;
+        color-scheme: light !important;
+        font: 14px/1.4 Arial, sans-serif !important;
+      }
+      :host::before, :host::after { content: none !important; }
+      *, *::before, *::after { box-sizing: border-box; }
+      button, input, textarea { font: inherit; color: #171717; }
+      button {
+        padding: 2px 7px; background: #f4f4f4; border: 1px solid #888;
+        border-radius: 3px; cursor: pointer;
+      }
+      button:active { background: #ddd; }
+      textarea, input:not([type=checkbox]) {
+        padding: 3px; background: white; border: 1px solid #888; border-radius: 2px;
+      }
+      input[type=checkbox] { width: 14px; height: 14px; margin: 0; accent-color: #2255aa; }
+      dialog {
+        margin: auto; padding: 16px; border: 1px solid #666; background: white;
+        color: #171717; max-width: 95vw; max-height: 95vh; overflow: auto;
+      }
+      dialog::backdrop { background: rgba(0, 0, 0, .3); }
+      dialog p { margin: 0 0 8px; }
+      dialog label { display: flex; align-items: center; gap: 4px; }
+      dialog textarea { margin: 8px 0; max-width: 100%; font-family: monospace; }
+      dialog button { margin: 2px; }
+    `;
+        ui.append(styles);
+        document.documentElement.append(host);
         const listeners = new AbortController();
         const overlay = document.createElement('div');
         overlay.hidden = true;
@@ -76,7 +113,7 @@
         function updateHighlight() {
             const el = pointer && document.elementFromPoint(pointer.x, pointer.y);
             if (finishDialog.open || !el || el === document.body || el === document.documentElement ||
-                el.closest('[data-vignelli-annotation]')) {
+                el === host) {
                 overlay.hidden = true;
                 return;
             }
@@ -147,7 +184,7 @@
             const { clientX: x, clientY: y } = e;
             const el = document.elementFromPoint(x, y);
             if (finishDialog.open || e.composedPath().includes(finishDialog) ||
-                isInputBoxEvent(e) || !el || el === document.documentElement)
+                isInputBoxEvent(e) || el === host || !el || el === document.documentElement)
                 return;
             e.preventDefault();
             const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -219,11 +256,11 @@
             reviews.set(review, { reposition, remove: () => { box.remove(); svg.remove(); } });
             owned.add(svg);
             owned.add(box);
-            document.body.append(svg, box);
+            ui.append(svg, box);
             reposition();
         }
         owned.add(overlay);
-        document.body.appendChild(overlay);
+        ui.append(overlay);
         document.addEventListener('mousemove', event => {
             pointer = { x: event.clientX, y: event.clientY };
             updateHighlight();
@@ -311,7 +348,7 @@
                 reviews.clear();
                 overlay.remove();
                 finishDialog.close();
-                finishDialog.remove();
+                host.remove();
                 delete state.vignelliReview;
             };
             const cancel = document.createElement('button');
@@ -322,7 +359,7 @@
                 overlay.hidden = false;
             };
             finishDialog.append(prompt, domLabel, report, copy, download, filenameField, cancel, confirm);
-            document.body.append(finishDialog);
+            ui.append(finishDialog);
         }
         state.vignelliReview = {
             requestFinish() {
