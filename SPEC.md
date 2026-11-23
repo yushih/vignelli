@@ -2,6 +2,8 @@
 
 Vignelli lets a reviewer point to a webpage element and write the change they want a coding agent to make.
 
+[SPEC.md](SPEC.md) defines the extension’s behavior and how to check it.
+
 ## Acceptance checks
 
 Run these on a webpage with at least two visible elements after loading the extension as described in the [README](README.md).
@@ -9,6 +11,7 @@ Run these on a webpage with at least two visible elements after loading the exte
 | Action | Expected result |
 | --- | --- |
 | Choose Vignelli from Chrome’s Extensions menu and hover over a page element. | The action popup says “Click a page element to add a review. Click this button again when finished”. An outline follows the hovered element in the active tab. |
+| Compare the same review on a plain page and after applying page-wide CSS overrides, including important rules for controls and SVG. | The hover outline, annotation, connector, and finish dialog retain their appearance and interactions. |
 | Keep the pointer still and scroll the page or a nested container. | The outline tracks the element now under the pointer and disappears over the page background or an annotation. |
 | Click an element and type a multiline note. | One annotation opens at the click location. Typing edits that note. |
 | Drag an exposed part of the annotation. | The box moves. A line connects the original click to the nearest point on the box border. |
